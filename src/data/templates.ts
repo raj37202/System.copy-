@@ -33,6 +33,16 @@ export const COLOR_PALETTES = [
     border: "border-zinc-800"
   },
   {
+    name: "Systeme.io Electric Blue",
+    primaryBg: "bg-white",
+    accent: "blue-500",
+    accentGradient: "from-[#00a4ff] to-[#0090ff]",
+    textPrimary: "text-[#1d2939]",
+    textSecondary: "text-[#475467]",
+    cardBg: "bg-white",
+    border: "border-slate-200"
+  },
+  {
     name: "Warm Editorial Teal",
     primaryBg: "bg-stone-50",
     accent: "emerald-700",
@@ -319,6 +329,163 @@ export const TEMPLATES: LandingPage[] = [
           simpleLinks: [
             { label: "Privacy Core", href: "#" },
             { label: "Earning Disclaimers", href: "#" }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    id: "temp-systeme",
+    title: "Systeme.io Electric Funnel",
+    description: "Centred high-converting course capture landing page mimicking Systeme.io's clean display signature.",
+    slug: "systeme-courses",
+    createdAt: new Date().toISOString(),
+    colorPalette: {
+      name: "Systeme.io Electric Blue",
+      primaryBg: "bg-white",
+      accent: "blue-500",
+      accentGradient: "from-[#00a4ff] to-[#0090ff]",
+      textPrimary: "text-[#1d2939]",
+      textSecondary: "text-[#475467]",
+      cardBg: "bg-white",
+      border: "border-slate-200"
+    },
+    fontFamily: "sans",
+    sections: [
+      {
+        id: "sec-header-sys",
+        type: SectionType.HEADER,
+        isVisible: true,
+        content: {
+          logoName: "systeme.io",
+          links: [
+            { label: "Why systeme.io?", href: "#" },
+            { label: "Features", href: "#" },
+            { label: "Resources", href: "#" },
+            { label: "Pricing", href: "#" }
+          ],
+          ctaText: "Start for free"
+        }
+      },
+      {
+        id: "sec-hero-sys",
+        type: SectionType.HERO,
+        isVisible: true,
+        content: {
+          badge: "",
+          headline: "Your platform for online courses",
+          subheadline: "Powering 500,000+ entrepreneurs. Get your free account now!",
+          ctaText: "Click here",
+          ctaSubtext: "Free forever. No credit card required.",
+          secondaryCtaText: "",
+          imageUrl: ""
+        }
+      },
+      {
+        id: "sec-features-sys",
+        type: SectionType.FEATURES,
+        isVisible: true,
+        content: {
+          title: "All the features you need in one place",
+          subtitle: "Stop using 10 different tools to run your business. Systeme replaces them with absolute ease.",
+          items: [
+            {
+              id: "sysf1",
+              title: "Instant Sales Funnels",
+              description: "Create sales funnels quickly based on responsive, beautiful layouts designed to elevate email capture.",
+              icon: "Zap"
+            },
+            {
+              id: "sysf2",
+              title: "Email Automated Marketing",
+              description: "Send unlimited marketing newsletters, organize triggers, and automate your entire series.",
+              icon: "Mail"
+            },
+            {
+              id: "sysf3",
+              title: "Online Courses Portal",
+              description: "Construct elegant membership sites, organize student levels, and process checkouts directly.",
+              icon: "Layers"
+            }
+          ]
+        }
+      },
+      {
+        id: "sec-pricing-sys",
+        type: SectionType.PRICING,
+        isVisible: true,
+        content: {
+          title: "Pricing Plans built for solo scale developers",
+          subtitle: "Start absolutely free and upgrade later as your business grows.",
+          plans: [
+            {
+              id: "sysp1",
+              name: "Free Subscription",
+              price: "$0",
+              period: "/mo",
+              description: "Everything you need to set up your initial list with zero budget.",
+              features: [
+                "2,000 Active Contacts",
+                "Three custom sales funnels",
+                "Unlimited email delivery sends",
+                "1 Membership course portal",
+                "24/7 dedicated support desk"
+              ],
+              buttonText: "Start FREE Now",
+              isPopular: false
+            },
+            {
+              id: "sysp2",
+              name: "Startup Active Tier",
+              price: "$27",
+              period: "/mo",
+              description: "Perfect for launch models ready to establish professional branding and domains.",
+              features: [
+                "5,000 Active Contacts",
+                "Ten custom sales funnels",
+                "Unlimited email delivery sends",
+                "5 Membership course portals",
+                "Custom domain name integrations",
+                "Automatic affiliate engine triggers"
+              ],
+              buttonText: "Scale My Campaigns",
+              isPopular: true
+            }
+          ]
+        }
+      },
+      {
+        id: "sec-faq-sys",
+        type: SectionType.FAQ,
+        isVisible: true,
+        content: {
+          title: "Common Inquiries",
+          subtitle: "Your questions answered in seconds.",
+          items: [
+            {
+              id: "sysq1",
+              question: "Is the Free plan really free forever?",
+              answer: "Yes. Our Free plan costs $0 and will remain free for life as long as you do not exceed 2,000 contacts or need custom complex automation triggers."
+            },
+            {
+              id: "sysq2",
+              question: "Can I transfer courses from other builders?",
+              answer: "Absolutely! Our professional migration team will extract, organize, and import all materials to systeme.io completely free on any annual upgrade."
+            }
+          ]
+        }
+      },
+      {
+        id: "sec-footer-sys",
+        type: SectionType.FOOTER,
+        isVisible: true,
+        content: {
+          copyright: `© 2026 systeme.io. Reconstruction developed with Lander.ai. All rights reserved.`,
+          logoText: "systeme.io Ltd",
+          disclaimer: "Disclaimer: This landing page is inspired by systeme.io. It is an affiliate-focused blueprint configured dynamically inside Lander.ai.",
+          simpleLinks: [
+            { label: "Disclaimer", href: "#" },
+            { label: "T&C", href: "#" }
           ]
         }
       }

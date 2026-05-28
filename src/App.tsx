@@ -48,6 +48,7 @@ export default function App() {
   const [isCloning, setIsCloning] = useState(false);
   const [cloneProgress, setCloneProgress] = useState<string[]>([]);
   const [widgetSearch, setWidgetSearch] = useState("");
+  const [elementorSidebarTab, setElementorSidebarTab] = useState<"widgets" | "global" | "navigator">("widgets");
 
   // Active sub-editor targeting
   const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null);
@@ -109,6 +110,73 @@ export default function App() {
   const [mockFormInputs, setMockFormInputs] = useState<Record<string, string>>({});
   const [mockFormSuccess, setMockFormSuccess] = useState<string | null>(null);
 
+  // Simulated Checkout & Secure Payment Modal State
+  const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
+  const [checkoutPlanName, setCheckoutPlanName] = useState("");
+  const [checkoutPlanPrice, setCheckoutPlanPrice] = useState("");
+  const [checkoutPlanPeriod, setCheckoutPlanPeriod] = useState("");
+  const [checkoutEmail, setCheckoutEmail] = useState("");
+  const [checkoutCardName, setCheckoutCardName] = useState("");
+  const [checkoutCardNum, setCheckoutCardNum] = useState("4242 4242 4242 4242");
+  const [checkoutCardExpiry, setCheckoutCardExpiry] = useState("12/28");
+  const [checkoutCardCVC, setCheckoutCardCVC] = useState("123");
+  const [checkoutIsPaying, setCheckoutIsPaying] = useState(false);
+  const [checkoutSuccess, setCheckoutSuccess] = useState(false);
+  const [checkoutBrand, setCheckoutBrand] = useState<"card" | "paypal" | "gpay">("card");
+
+  const triggerCheckout = (name: string, price: string, period: string) => {
+    setCheckoutPlanName(name);
+    setCheckoutPlanPrice(price);
+    setCheckoutPlanPeriod(period);
+    setCheckoutEmail("");
+    setCheckoutCardName("");
+    setCheckoutSuccess(false);
+    setCheckoutIsPaying(false);
+    setIsCheckoutModalOpen(true);
+  };
+
+  const handleSimulatedPaymentSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setCheckoutIsPaying(true);
+    setTimeout(() => {
+      setCheckoutIsPaying(false);
+      setCheckoutSuccess(true);
+      
+      // Save buyer as a Lead so it gets integrated with Campaign Leads automatically!
+      const newLeadId = "lead-" + Math.random().toString(36).substr(2, 5);
+      const matchedPage = getPageById(currentPageId);
+      const newLead: Lead = {
+        id: newLeadId,
+        pageId: currentPageId || "sandbox",
+        pageTitle: matchedPage ? matchedPage.title : "Direct Checkout Product",
+        email: checkoutEmail || "buyer." + Math.random().toString(36).substr(2, 4) + "@gmail.com",
+        name: checkoutCardName || "Verified Buyer",
+        details: { 
+          message: `👑 CHECKOUT SUCCESS: Purchased ${checkoutPlanName} pricing plan for ${checkoutPlanPrice}${checkoutPlanPeriod || ""}.`,
+          method: checkoutBrand === 'card' ? '👨‍💻 Credit Card (SSL)' : checkoutBrand === 'paypal' ? '🌐 PayPal Secure' : '📱 Google Pay Express'
+        },
+        createdAt: new Date().toISOString()
+      };
+      
+      setLeads(prev => [newLead, ...prev]);
+
+      // Update metrics click & conversions counts
+      if (currentPageId) {
+        setMetrics(prev => prev.map(m => {
+          if (m.pageId === currentPageId) {
+            return {
+              ...m,
+              clicks: m.clicks + 1,
+              leads: m.leads + 1,
+              conversionRate: Math.round(((m.leads + 1) / m.views) * 1000) / 10
+            };
+          }
+          return m;
+        }));
+      }
+    }, 1500);
+  };
+
   // Save changes automatically
   useEffect(() => {
     localStorage.setItem("lander_pages", JSON.stringify(pages));
@@ -125,6 +193,26 @@ export default function App() {
       return <IconComponent className={className} />;
     }
     return <Icons.HelpCircle className={className} />;
+  };
+
+  const renderHeadline = (text: string) => {
+    if (!text) return "";
+    if (text.toLowerCase().includes("online courses")) {
+      const index = text.toLowerCase().indexOf("online courses");
+      const before = text.substring(0, index);
+      const after = text.substring(index + "online courses".length);
+      return (
+        <span>
+          {before}
+          <span className="relative inline-block text-[#1d2939] z-10 font-black">
+            online courses
+            <span className="absolute left-0 bottom-[1px] md:bottom-[-2px] w-full h-[6px] bg-[#00a4ff] -z-10 rounded opacity-90" />
+          </span>
+          {after}
+        </span>
+      );
+    }
+    return text;
   };
 
   const getPageById = (id: string | null): LandingPage | undefined => {
@@ -407,6 +495,559 @@ export default function App() {
       const nextStatus = !p.published;
       return { ...p, published: nextStatus };
     }));
+  };
+
+  const updateAllAffiliateUrls = (newUrl: string) => {
+    if (!currentPageId || !newUrl) return;
+    setPages(prev => prev.map(p => {
+      if (p.id !== currentPageId) return p;
+      return {
+        ...p,
+        sections: p.sections.map(s => {
+          if (s.content && "affiliateUrl" in s.content) {
+            return {
+              ...s,
+              content: {
+                ...s.content,
+                affiliateUrl: newUrl
+              }
+            };
+          }
+          return s;
+        })
+      };
+    }));
+  };
+
+  const injectNicheTemplate = (nicheType: string) => {
+    if (!currentPageId) return;
+    let newSections: LandingPageSection[] = [];
+    const affiliateUrl = "https://your-affiliate-link.com";
+
+    if (nicheType === "saas") {
+      newSections = [
+        {
+          id: `sec-header-${Math.random().toString(36).substr(2, 4)}`,
+          type: SectionType.HEADER,
+          isVisible: true,
+          content: {
+            logoName: "ApexFlowai",
+            links: [
+              { label: "Product Review", href: "#section-aff-review-stars" },
+              { label: "Comparison", href: "#section-aff-pro-con-card" },
+              { label: "Exclusive Bonuses", href: "#section-aff-bonus-grid" }
+            ],
+            ctaText: "Go To Deal"
+          }
+        },
+        {
+          id: `sec-hero-${Math.random().toString(36).substr(2, 4)}`,
+          type: SectionType.HERO,
+          isVisible: true,
+          content: {
+            badge: "⚡ EXCLUSIVE 60% COMMISSION PARTNER DISCOUNT DISCOVERED",
+            headline: "Brutally Honest ApexFlowai Review: Is It Worth $79/Month Or Total Sensation?",
+            subheadline: "We spent 35 days benchmarking ApexFlowai's real-world dynamic page layout cloning algorithms. Check our direct conversion metrics below before joining.",
+            ctaText: "Claim Exclusive Deal Now (60% Off)",
+            ctaSubtext: "Includes all priority affiliate bonuses listed below automatically.",
+            secondaryCtaText: "Scroll Down To Case Study",
+            imageUrl: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=800&q=80",
+            featuresList: ["99.8% Faster Serverless Loadtime", "Real-time AI rewriting included", "Instant custom Domain setup in 1-click"]
+          }
+        },
+        {
+          id: `sec-revstars-${Math.random().toString(36).substr(2, 4)}`,
+          type: SectionType.AFF_REVIEW_STARS,
+          isVisible: true,
+          content: {
+            title: "⭐ Honest Review of ApexFlowai: Worth the Hype?",
+            rating: 4.9,
+            summary: "After rigorous performance validation, ApexFlow's clean serverless caching easily beats manual Elementor or WordPress setups. If you deal with active paid traffic campaigns, this is an absolute must-have tool for your tech stack.",
+            pros: [
+              "99.8% Faster Serverless Edge caching bypasses standard server delays",
+              "1-click URL clone mechanics perfectly structures clean landing sections",
+              "Inbuilt high-converting copy AI assistant writes headlines instantly"
+            ],
+            cons: [
+              "Only 5 template pre-sets available during early beta sandbox preview",
+              "Currently requires a persistent active internet connections"
+            ],
+            buttonText: "Secure Exclusive Lifetime Discount Slot (Save 60%)",
+            affiliateUrl: affiliateUrl
+          }
+        },
+        {
+          id: `sec-procon-${Math.random().toString(36).substr(2, 4)}`,
+          type: SectionType.AFF_PRO_CON_CARD,
+          isVisible: true,
+          content: {
+            title: "Side-by-Side Breakdown: How ApexFlow Beats Traditional Builders",
+            subtitle: "A detailed metrics chart compiled for direct response marketing professionals.",
+            compTitle1: "ApexFlowai / Lander.ai",
+            compTitle2: "Traditional Page Builders",
+            comp1Items: [
+              "Instant AI URL Landing Page Cloning Setup",
+              "Native Elementor Pro conversion widgets bundle",
+              "Built-in hosting with automated absolute SSL certificates",
+              "Dynamic simulated metrics telemetry live checker"
+            ],
+            comp2Items: [
+              "Locked behind expensive individual software subscriptions",
+              "Prone to massive WordPress server load slow-downs",
+              "Complex separate setups required, style CSS code bugs",
+              "No built-in AI copywriting support"
+            ],
+            buttonText: "Get Instant Lifetime VIP Access Today",
+            affiliateUrl: affiliateUrl
+          }
+        },
+        {
+          id: `sec-videorev-${Math.random().toString(36).substr(2, 4)}`,
+          type: SectionType.AFF_VIDEO_REVIEW,
+          isVisible: true,
+          content: {
+            title: "🍿 Deep-Dive Video Walkthrough & Test Drive",
+            subtitle: "Watch us build, edit, audit, and launch an incredible lead-generation campaign in under 2 minutes.",
+            videoPlaceholderText: "Simulated ApexFlow Live Build High-Quality Demonstration video cover. Press play.",
+            badgeText: "🔥 24K+ YouTube Views",
+            ctaTitle: "Claim $1,200 Worth of Pure Digital Marketing Bonuses When Buying Via Our Link Below Today!",
+            buttonText: "Secure Deal & Unlock All Bonuses Now",
+            affiliateUrl: affiliateUrl
+          }
+        },
+        {
+          id: `sec-bonus-${Math.random().toString(36).substr(2, 4)}`,
+          type: SectionType.AFF_BONUS_GRID,
+          isVisible: true,
+          content: {
+            title: "🎁 Over $1,200 in Pure Actionable Bonuses Added Automatically",
+            subtitle: "Every single item is configured instantly free of charge download when you proceed to secure the software via our partner link.",
+            items: [
+              { id: "b1", title: "Bonus #1: High Ticket Copywriting Vault ($197 Value)", description: "The precise copywriting swipe files used by elite agencies to build high-performance ad promotions.", valueText: "FREE", icon: "FolderLock" },
+              { id: "b2", title: "Bonus #2: Page Speed Edge Optimizer ($297 Value)", description: "Code scripts to compress image payloads and scale servers to bypass page delays.", valueText: "FREE", icon: "Sliders" },
+              { id: "b3", title: "Bonus #3: Direct Response Private Mastermind ($499 Value)", description: "Network live with seasoned direct response agency founders and copywriters in our Slack.", valueText: "FREE", icon: "MessageSquare" }
+            ],
+            buttonText: "Register Through Our Partner Link & Claim Bonuses",
+            affiliateUrl: affiliateUrl
+          }
+        },
+        {
+          id: `sec-footer-${Math.random().toString(36).substr(2, 4)}`,
+          type: SectionType.FOOTER,
+          isVisible: true,
+          content: {
+            copyright: `© ${new Date().getFullYear()} ApexFlow Reviewer. All rights reserved.`,
+            logoText: "ApexFlow Reviewer",
+            disclaimer: "Income Disclaimer: Results represent individual outcomes. Success requires active application, continuous effort, and marketing diligence. We represent this product as an affiliate and receive commissions on purchases.",
+            simpleLinks: [
+              { label: "Privacy Policy", href: "#" },
+              { label: "Terms of Service", href: "#" },
+              { label: "Affiliate Disclosure", href: "#" }
+            ]
+          }
+        }
+      ];
+    } else if (nicheType === "health") {
+      newSections = [
+        {
+          id: `sec-header-${Math.random().toString(36).substr(2, 4)}`,
+          type: SectionType.HEADER,
+          isVisible: true,
+          content: {
+            logoName: "SlimCore Wellness",
+            links: [
+              { label: "Lab Test Results", href: "#section-aff-review-stars" },
+              { label: "How It Compares", href: "#section-aff-pro-con-card" },
+              { label: "Keto Bonuses", href: "#section-aff-bonus-grid" }
+            ],
+            ctaText: "Visit Lab Site"
+          }
+        },
+        {
+          id: `sec-hero-${Math.random().toString(36).substr(2, 4)}`,
+          type: SectionType.HERO,
+          isVisible: true,
+          content: {
+            badge: "🥗 NATURAL DIET VERIFIED SAFE AND BIO-AVAILABLE",
+            headline: "Slimcore Keto Drops Pro: Can You Melt 12lbs In 14 Days Without Starving?",
+            subheadline: "We analyzed the chemical composition, clinical test groups, and customer feedback of SlimCore premium ketone fat burners. The truth might shock you.",
+            ctaText: "Check Official Slimcore Stock Status (Save 50%)",
+            ctaSubtext: "Guaranteed 100% money-back satisfaction from official supplier.",
+            secondaryCtaText: "Check Core Ingredients",
+            imageUrl: "https://images.unsplash.com/photo-1490645935967-10de6ba17061?auto=format&fit=crop&w=800&q=80",
+            featuresList: ["100% Organic USDA ingredients", "Accelerates ketosis metabolic rate safely", "No synthetic caffeine or nervous jitters"]
+          }
+        },
+        {
+          id: `sec-revstars-${Math.random().toString(36).substr(2, 4)}`,
+          type: SectionType.AFF_REVIEW_STARS,
+          isVisible: true,
+          content: {
+            title: "⭐ Clinical Testing & Score of Slimcore Drops",
+            rating: 4.8,
+            summary: "SlimCore Ketone complex is a sublingual drop formula designed for rapid bio-availability. Testing showed a 40% faster ketosis activation than standard powder supplements, while suppressing daily sugar cravings effortlessly.",
+            pros: [
+              "Sublingual absorption bypasses gastric acid digestion loss",
+              "Increases natural baseline energy and limits cognitive fog",
+              "Suppresses persistent emotional appetite from Day 1"
+            ],
+            cons: [
+              "Slight herbal tart flavor might require drinking water",
+              "Extremely high demand often causes official stock delays"
+            ],
+            buttonText: "Check Current Slimcore Factory Direct Discounts Available",
+            affiliateUrl: affiliateUrl
+          }
+        },
+        {
+          id: `sec-procon-${Math.random().toString(36).substr(2, 4)}`,
+          type: SectionType.AFF_PRO_CON_CARD,
+          isVisible: true,
+          content: {
+            title: "Side-by-Side: Slimcore Natural Drops vs Standard Diet Pills",
+            subtitle: "Chemical comparison performed by independent health and wellness professionals.",
+            compTitle1: "Slimcore Wellness Ketones",
+            compTitle2: "Standard Fat Burner Pills",
+            comp1Items: [
+              "Direct sublingual rapid bio-available delivery",
+              "100% clinically verified organic green extracts",
+              "Promotes slow and sound sleep alongside ketosis",
+              "Zero synthetic additives, fillers, or binding powders"
+            ],
+            comp2Items: [
+              "Must pass hepatic digest systems (70% active ingredient waste)",
+              "Laced with unsafe levels of dehydrating caffeine",
+              "Causes heavy blood sugar spikes and crashes",
+              "Hard to swallow, slow to dissolve"
+            ],
+            buttonText: "Secure Official Discount Bottle Pack Today",
+            affiliateUrl: affiliateUrl
+          }
+        },
+        {
+          id: `sec-videorev-${Math.random().toString(36).substr(2, 4)}`,
+          type: SectionType.AFF_VIDEO_REVIEW,
+          isVisible: true,
+          content: {
+            title: "🍿 Customer Testimonial Diaries & Fluid Dissolve Demo",
+            subtitle: "Watch us perform a clear bio-availability dissolve test in hot liquids and review real 12-week weight loss logs.",
+            videoPlaceholderText: "Simulated Nutritionist Lab Testing Demonstration. Press to play.",
+            badgeText: "🔥 58K+ Active Orders",
+            ctaTitle: "Grab Slimcore Today & Receive Our Exclusive Fit-Life Bonus Bundle Books Instantly Free!",
+            buttonText: "Get Slimcore & Free Bonuses Today",
+            affiliateUrl: affiliateUrl
+          }
+        },
+        {
+          id: `sec-bonus-${Math.random().toString(36).substr(2, 4)}`,
+          type: SectionType.AFF_BONUS_GRID,
+          isVisible: true,
+          content: {
+            title: "🎁 Over $300 in Premium Fitness and Habit Bonuses Included",
+            subtitle: "Get all these custom pre-configured premium materials instantly free when you purchase through our link.",
+            items: [
+              { id: "b1", title: "Bonus #1: The Keto Recipe Swipe Deck ($147 Value)", description: "The ultimate 10-minute recipes to maintain maximum ketone levels without giving up delicious food.", valueText: "FREE", icon: "FolderLock" },
+              { id: "b2", title: "Bonus #2: Water Habit Mobile Calendar Tracker ($47 Value)", description: "Daily notification prompts and calendars to maintain perfect cell hydration during rapid ketosis.", valueText: "FREE", icon: "Sliders" },
+              { id: "b3", title: "Bonus #3: Premium Clean Detox Tea Secrets ($97 Value)", description: "Simple herbal detox tea recipes you can make at home to cleanse liver and kidney systems.", valueText: "FREE", icon: "MessageSquare" }
+            ],
+            buttonText: "Secure Bottle Promotion & Claim Nutritional Bonuses",
+            affiliateUrl: affiliateUrl
+          }
+        },
+        {
+          id: `sec-footer-${Math.random().toString(36).substr(2, 4)}`,
+          type: SectionType.FOOTER,
+          isVisible: true,
+          content: {
+            copyright: `© ${new Date().getFullYear()} SlimCore Reviews. All rights reserved.`,
+            logoText: "SlimCore Reviews",
+            disclaimer: "Disclaimer: These statements have not been evaluated by the FDA. This product is not intended to diagnose, treat, cure, or prevent any disease. Results represent individual outcomes.",
+            simpleLinks: [
+              { label: "Privacy Core", href: "#" },
+              { label: "FDA Disclaimers", href: "#" },
+              { label: "Affiliate Affiliate Compensation", href: "#" }
+            ]
+          }
+        }
+      ];
+    } else if (nicheType === "crypto") {
+      newSections = [
+        {
+          id: `sec-header-${Math.random().toString(36).substr(2, 4)}`,
+          type: SectionType.HEADER,
+          isVisible: true,
+          content: {
+            logoName: "Wealth DeFi Protocol",
+            links: [
+              { label: "Audit Report", href: "#section-aff-review-stars" },
+              { label: "System Compare", href: "#section-aff-pro-con-card" },
+              { label: "DeFi Bonuses", href: "#section-aff-bonus-grid" }
+            ],
+            ctaText: "Join Live Class"
+          }
+        },
+        {
+          id: `sec-hero-${Math.random().toString(36).substr(2, 4)}`,
+          type: SectionType.HERO,
+          isVisible: true,
+          content: {
+            badge: "📈 100% PASSIVE BLOCKCHAIN INCOME SYSTEM REVIEWED",
+            headline: "Passive Wealth Protocol: The Underground Crypto Staking System of 2026",
+            subheadline: "Tired of volatile shitcoins and trading fatigue? We completed an audit on a passive decentralized liquidity protocol that targets a steady 12.5% yield completely offline.",
+            ctaText: "Check Web Seminar Slots (No-Cost Ticket)",
+            ctaSubtext: "Includes immediate training workbook free download.",
+            secondaryCtaText: "Read Protocol Metrics",
+            imageUrl: "https://images.unsplash.com/photo-1621761191319-c6fb62004040?auto=format&fit=crop&w=800&q=80",
+            featuresList: ["Zero trading experience required", "Runs completely hands-free once setup", "Fully backed by audited smart-contracts"]
+          }
+        },
+        {
+          id: `sec-revstars-${Math.random().toString(36).substr(2, 4)}`,
+          type: SectionType.AFF_REVIEW_STARS,
+          isVisible: true,
+          content: {
+            title: "⭐ Professional Safety & Smart-Contract Audit",
+            rating: 4.7,
+            summary: "The Passive Wealth Protocol uses a dual-hedged market maker pool to capture micro swap gas fees. The protocol passed a major safety audit with flying colors, displaying standard stablecoin liquidity with zero risk of capital drain.",
+            pros: [
+              "Generates steady passive yields directly from blockchain network gas fees",
+              "Smart-contracts fully audited by CertiK with a safe score",
+              "Requires as little as $100 in baseline liquidity capital to initiate"
+            ],
+            cons: [
+              "Requires a MetaMask or Exodus decentralized cryptocurrency wallet",
+              "Subject to minor Ethereum or Solana baseline network gas spikes"
+            ],
+            buttonText: "Claim Free Ticket to Crypto Wealth Web Masterclass",
+            affiliateUrl: affiliateUrl
+          }
+        },
+        {
+          id: `sec-procon-${Math.random().toString(36).substr(2, 4)}`,
+          type: SectionType.AFF_PRO_CON_CARD,
+          isVisible: true,
+          content: {
+            title: "Side-by-Side: Automated Vault Staking vs Shitcoin Trading",
+            subtitle: "Risk-reward comparison designed to preserve and scale generational wealth.",
+            compTitle1: "Passive Wealth Liquidity Pool",
+            compTitle2: "Typical Crypto Trading",
+            comp1Items: [
+              "Algorithmic mathematically backed slow & safe wealth growth",
+              "Audited smart-contract secure escrow pools",
+              "Requires only 10 minutes of weekly maintenance",
+              "Captures transaction gas fees from all swap tokens"
+            ],
+            comp2Items: [
+              "Exposed to highly aggressive pump & dump market manipulation",
+              "Kept on fragile centralized exchange servers (FTX risk)",
+              "Requires 12+ hours daily screen charting, causes severe anxiety",
+              "Only profitable during active bull markets"
+            ],
+            buttonText: "Secure Verified Training Reservation Free",
+            affiliateUrl: affiliateUrl
+          }
+        },
+        {
+          id: `sec-videorev-${Math.random().toString(36).substr(2, 4)}`,
+          type: SectionType.AFF_VIDEO_REVIEW,
+          isVisible: true,
+          content: {
+            title: "🍿 Live Vault Dashboard & Secret Staking Demonstration",
+            subtitle: "Watch real live wallet staking pool run on mainnet. We deposit coins live, and harvest real-time rewards in under 90 seconds.",
+            videoPlaceholderText: "Simulated Mainnet Vault Deposit Walkthrough. Press to play.",
+            badgeText: "🔥 14K+ Live Students",
+            ctaTitle: "Enroll For No-Cost Today & Claim Our Exclusive Developer Bonus DeFi Yield Farming Cheat Sheets!",
+            buttonText: "Enroll In Free Training & Receive DeFi Manuals",
+            affiliateUrl: affiliateUrl
+          }
+        },
+        {
+          id: `sec-bonus-${Math.random().toString(36).substr(2, 4)}`,
+          type: SectionType.AFF_BONUS_GRID,
+          isVisible: true,
+          content: {
+            title: "🎁 Over $500 in High-Ticket Crypto DeFi Bonuses",
+            subtitle: "Receive all download links immediately inside the masterclass registration room.",
+            items: [
+              { id: "b1", title: "Bonus #1: DeFi Yield Farm Cheat Sheet ($197 Value)", description: "The direct hot list of highest yielding audited stablecoin pools updated daily.", valueText: "FREE", icon: "FolderLock" },
+              { id: "b2", title: "Bonus #2: Low-Gas Crypto Wallet Setup Guide ($99 Value)", description: "Step-by-step illustrations to optimize your wallet parameters to pay lowest network fees.", valueText: "FREE", icon: "Sliders" },
+              { id: "b3", title: "Bonus #3: VIP Wealth Signal Mastermind Access ($297 Value)", description: "A free 30-day ticket to check live staking signals and chat with blockchain veteran miners.", valueText: "FREE", icon: "MessageSquare" }
+            ],
+            buttonText: "Secure Free Registration Ticket & Access DeFi Manuals Now",
+            affiliateUrl: affiliateUrl
+          }
+        },
+        {
+          id: `sec-footer-${Math.random().toString(36).substr(2, 4)}`,
+          type: SectionType.FOOTER,
+          isVisible: true,
+          content: {
+            copyright: `© ${new Date().getFullYear()} Passive Yield Hub. All rights reserved.`,
+            logoText: "Passive Yield Hub",
+            disclaimer: "Disclaimer: Trading and staking cryptocurrencies involves high risk. This is not financial advice. Past performance is not indicative of future rewards.",
+            simpleLinks: [
+              { label: "Privacy Policy", href: "#" },
+              { label: "Risk Disclosures", href: "#" },
+              { label: "Partner Commissions", href: "#" }
+            ]
+          }
+        }
+      ];
+    } else if (nicheType === "systeme") {
+      newSections = [
+        {
+          id: `sec-header-${Math.random().toString(36).substr(2, 4)}`,
+          type: SectionType.HEADER,
+          isVisible: true,
+          content: {
+            logoName: "systeme.io",
+            links: [
+              { label: "Why systeme.io?", href: "#" },
+              { label: "Features", href: "#" },
+              { label: "Resources", href: "#" },
+              { label: "Pricing", href: "#" }
+            ],
+            ctaText: "Start for free"
+          }
+        },
+        {
+          id: `sec-hero-${Math.random().toString(36).substr(2, 4)}`,
+          type: SectionType.HERO,
+          isVisible: true,
+          content: {
+            badge: "",
+            headline: "Your platform for online courses",
+            subheadline: "Powering 500,000+ entrepreneurs. Get your free account now!",
+            ctaText: "Click here",
+            ctaSubtext: "Free forever. No credit card required.",
+            secondaryCtaText: "",
+            imageUrl: ""
+          }
+        },
+        {
+          id: `sec-features-${Math.random().toString(36).substr(2, 4)}`,
+          type: SectionType.FEATURES,
+          isVisible: true,
+          content: {
+            title: "All the features you need in one place",
+            subtitle: "Stop using 10 different tools to run your business. Systeme replaces them with absolute ease.",
+            items: [
+              {
+                id: "sysf1",
+                title: "Instant Sales Funnels",
+                description: "Create sales funnels quickly based on responsive, beautiful layouts designed to elevate email capture.",
+                icon: "Zap"
+              },
+              {
+                id: "sysf2",
+                title: "Email Automated Marketing",
+                description: "Send unlimited marketing newsletters, organize triggers, and automate your entire series.",
+                icon: "Mail"
+              },
+              {
+                id: "sysf3",
+                title: "Online Courses Portal",
+                description: "Construct elegant membership sites, organize student levels, and process checkouts directly.",
+                icon: "Layers"
+              }
+            ]
+          }
+        },
+        {
+          id: `sec-pricing-${Math.random().toString(36).substr(2, 4)}`,
+          type: SectionType.PRICING,
+          isVisible: true,
+          content: {
+            title: "Pricing Plans built for solo scale developers",
+            subtitle: "Start absolutely free and upgrade later as your business grows.",
+            plans: [
+              {
+                id: "sysp1",
+                name: "Free Subscription",
+                price: "$0",
+                period: "/mo",
+                description: "Everything you need to set up your initial list with zero budget.",
+                features: [
+                  "2,000 Active Contacts",
+                  "Three custom sales funnels",
+                  "Unlimited email delivery sends",
+                  "1 Membership course portal",
+                  "24/7 dedicated support desk"
+                ],
+                buttonText: "Start FREE Now",
+                isPopular: false
+              },
+              {
+                id: "sysp2",
+                name: "Startup Active Tier",
+                price: "$27",
+                period: "/mo",
+                description: "Perfect for launch models ready to establish professional branding and domains.",
+                features: [
+                  "5,000 Active Contacts",
+                  "Ten custom sales funnels",
+                  "Unlimited email delivery sends",
+                  "5 Membership course portals",
+                  "Custom domain name integrations",
+                  "Automatic affiliate engine triggers"
+                ],
+                buttonText: "Scale My Campaigns",
+                isPopular: true
+              }
+            ]
+          }
+        },
+        {
+          id: `sec-faq-${Math.random().toString(36).substr(2, 4)}`,
+          type: SectionType.FAQ,
+          isVisible: true,
+          content: {
+            title: "Common Inquiries",
+            subtitle: "Your questions answered in seconds.",
+            items: [
+              {
+                id: "sysq1",
+                question: "Is the Free plan really free forever?",
+                answer: "Yes. Our Free plan costs $0 and will remain free for life as long as you do not exceed 2,000 contacts or need custom complex automation triggers."
+              },
+              {
+                id: "sysq2",
+                question: "Can I transfer courses from other builders?",
+                answer: "Absolutely! Our professional migration team will extract, organize, and import all materials to systeme.io completely free on any annual upgrade."
+              }
+            ]
+          }
+        },
+        {
+          id: `sec-footer-${Math.random().toString(36).substr(2, 4)}`,
+          type: SectionType.FOOTER,
+          isVisible: true,
+          content: {
+            copyright: `© 2026 systeme.io. Reconstruction developed with Lander.ai. All rights reserved.`,
+            logoText: "systeme.io Ltd",
+            disclaimer: "Disclaimer: This landing page is inspired by systeme.io. It is an affiliate-focused blueprint configured dynamically inside Lander.ai.",
+            simpleLinks: [
+              { label: "Disclaimer", href: "#" },
+              { label: "T&C", href: "#" }
+            ]
+          }
+        }
+      ];
+    }
+
+    setPages(prev => prev.map(p => {
+      if (p.id !== currentPageId) return p;
+      return {
+        ...p,
+        sections: newSections
+      };
+    }));
+    
+    // Automatically select the first review as selected section to show control panel immediately
+    const firstReview = newSections.find(s => s.type === SectionType.AFF_REVIEW_STARS);
+    if (firstReview) {
+      setSelectedSectionId(firstReview.id);
+    }
   };
 
   // AI copywriting rewrites (Calling backend Endpoint)
@@ -1192,41 +1833,83 @@ export default function App() {
               
               {/* ELEMENTOR PRO WIDGET PALETTE SIDEBAR */}
               {!isPreviewActive && activePage && (
-                <div className="w-[260px] bg-[#070712]/95 border-r border-white/[0.05] flex flex-col h-full overflow-hidden shrink-0" id="elementor-pro-sidebar">
+                <div className="w-[280px] bg-[#070712]/95 border-r border-[#ffffff]/10 flex flex-col h-full overflow-hidden shrink-0" id="elementor-pro-sidebar">
                   {/* Sidebar Brand Header Banner with pink/red block signature to mimic Elementor Pro */}
-                  <div className="p-4 bg-slate-900 border-b border-white/[0.05] flex items-center justify-between shrink-0" id="elementor-brand-header">
-                    <div className="flex items-center gap-2">
-                      <span className="w-6 h-6 rounded-lg bg-gradient-to-tr from-rose-500 to-pink-500 text-white font-black text-xs flex items-center justify-center font-mono shadow-md tracking-wider">
-                        E!
-                      </span>
-                      <div className="text-left">
-                        <h4 className="text-xs font-extrabold tracking-wider text-white uppercase font-sans flex items-center gap-1 leading-none">
-                          Elementor Pro <span className="text-[7px] text-rose-400 bg-rose-500/10 border border-rose-500/30 px-1 py-0.5 rounded uppercase font-bold leading-none shrink-0">Affiliate</span>
-                        </h4>
-                        <p className="text-[8px] text-slate-500 leading-none mt-1">Instant affiliate landing tools</p>
+                  <div className="p-3 bg-slate-900 border-b border-white/[0.05] shrink-0" id="elementor-brand-header">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="w-6 h-6 rounded bg-gradient-to-tr from-rose-500 to-pink-500 text-white font-black text-xs flex items-center justify-center font-mono shadow-md tracking-wider shrink-0">
+                          E!
+                        </span>
+                        <div className="text-left">
+                          <h4 className="text-xs font-extrabold tracking-wider text-white uppercase font-sans flex items-center gap-1 leading-none font-sans">
+                            Elementor Pro <span className="text-[7px] text-rose-400 bg-rose-500/10 border border-rose-500/30 px-1 py-0.5 rounded uppercase font-bold leading-none shrink-0 font-sans">Affiliate</span>
+                          </h4>
+                          <p className="text-[8px] text-slate-500 leading-none mt-1 font-sans">Instant affiliate landing tools</p>
+                        </div>
                       </div>
                     </div>
                   </div>
 
-                  {/* Search Box */}
-                  <div className="p-3 border-b border-white/[0.03] shrink-0" id="elementor-search-box">
-                    <div className="relative">
-                      <Icons.Search className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-slate-500" />
-                      <input
-                        type="text"
-                        value={widgetSearch}
-                        onChange={(e) => setWidgetSearch(e.target.value)}
-                        placeholder="Search widgets (e.g., star, review)..."
-                        className="w-full bg-[#030308] border border-white/[0.06] rounded-lg pl-8 p-1.5 text-[10px] text-slate-300 placeholder:text-slate-600 focus:outline-none focus:border-rose-500/30 text-left"
-                      />
-                      {widgetSearch && (
-                        <button onClick={() => setWidgetSearch("")} className="absolute right-2 top-2 text-slate-500 hover:text-slate-300 text-[10px]">✕</button>
-                      )}
-                    </div>
+                  {/* Sidebar Navigation Tabs */}
+                  <div className="grid grid-cols-3 border-b border-white/[0.04] bg-[#020206] shrink-0 p-1 gap-1" id="elementor-tabs">
+                    <button
+                      onClick={() => setElementorSidebarTab("widgets")}
+                      className={`py-2 rounded text-[10px] font-bold flex flex-col items-center justify-center gap-1 cursor-pointer transition-all font-sans ${
+                        elementorSidebarTab === "widgets"
+                          ? "bg-rose-600/15 text-rose-405 border border-rose-500/25"
+                          : "text-slate-400 hover:text-slate-205 border border-transparent"
+                      }`}
+                    >
+                      <Icons.Grid className="w-3.5 h-3.5" />
+                      Widgets
+                    </button>
+                    <button
+                      onClick={() => setElementorSidebarTab("global")}
+                      className={`py-2 rounded text-[10px] font-bold flex flex-col items-center justify-center gap-1 cursor-pointer transition-all font-sans ${
+                        elementorSidebarTab === "global"
+                          ? "bg-emerald-600/15 text-emerald-400 border border-emerald-500/25"
+                          : "text-slate-400 hover:text-slate-205 border border-transparent"
+                      }`}
+                    >
+                      <Icons.Settings className="w-3.5 h-3.5" />
+                      Setup
+                    </button>
+                    <button
+                      onClick={() => setElementorSidebarTab("navigator")}
+                      className={`py-2 rounded text-[10px] font-bold flex flex-col items-center justify-center gap-1 cursor-pointer transition-all font-sans ${
+                        elementorSidebarTab === "navigator"
+                          ? "bg-purple-600/15 text-purple-405 border border-purple-500/25"
+                          : "text-slate-400 hover:text-slate-205 border border-transparent"
+                      }`}
+                    >
+                      <Icons.Layers className="w-3.5 h-3.5" />
+                      Navigator
+                    </button>
                   </div>
 
-                  {/* Widgets List Scroll area */}
-                  <div className="flex-1 overflow-y-auto p-3 space-y-4 scrollbar-thin text-left" id="elementor-categories-stack">
+                  {/* Tab Panels */}
+                  {elementorSidebarTab === "widgets" && (
+                    <div className="flex-1 flex flex-col overflow-hidden">
+                      {/* Search Box */}
+                      <div className="p-3 border-b border-white/[0.03] shrink-0" id="elementor-search-box">
+                        <div className="relative font-sans">
+                          <Icons.Search className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-slate-500" />
+                          <input
+                            type="text"
+                            value={widgetSearch}
+                            onChange={(e) => setWidgetSearch(e.target.value)}
+                            placeholder="Search widgets (e.g., star, review)..."
+                            className="w-full bg-[#030308] border border-white/[0.06] rounded-lg pl-8 p-1.5 text-[10px] text-slate-300 placeholder:text-slate-600 focus:outline-none focus:border-rose-500/30 text-left font-sans"
+                          />
+                          {widgetSearch && (
+                            <button onClick={() => setWidgetSearch("")} className="absolute right-2 top-2 text-slate-500 hover:text-slate-300 text-[10px]">✕</button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Widgets List Scroll area */}
+                      <div className="flex-1 overflow-y-auto p-3 space-y-4 scrollbar-thin text-left" id="elementor-categories-stack">
                     
                     {/* Category 1: Affiliate Special Hot components */}
                     <div className="space-y-2">
@@ -1387,18 +2070,227 @@ export default function App() {
                             </div>
                             <div>
                               <span className="block text-[10px] font-bold text-white leading-tight">Feature Deck</span>
-                              <span className="block text-[8px] text-slate-500 truncate">Grid of metrics</span>
+                              <span className="block text-[8px] text-slate-500 truncate font-sans">Grid of metrics</span>
                             </div>
                           </button>
                         )}
                       </div>
                     </div>
-
                   </div>
+                </div>
+              )}
+
+                  {/* Tab Content Panel 2: GLOBAL SETUP & PERSUASIVE STARTERS */}
+                  {elementorSidebarTab === "global" && (
+                    <div className="flex-1 overflow-y-auto p-3 space-y-4 scrollbar-thin text-left font-sans" id="elementor-global-panel">
+                      {/* Section A: Global Commission routing */}
+                      <div className="space-y-1.5 font-sans">
+                        <span className="block text-[9px] font-bold text-emerald-400 uppercase tracking-widest font-mono">🔗 COMMISSION LINK ROUTER</span>
+                        <div className="bg-[#0b1c11]/80 border border-emerald-500/20 rounded-xl p-3 space-y-1.5 shadow-sm font-sans">
+                          <label className="block text-[9px] text-slate-300 font-bold uppercase tracking-wider font-sans">Your Affiliate Target URL</label>
+                          <div className="relative font-sans">
+                            <Icons.Link className="absolute left-2 top-2.5 w-3 h-3 text-emerald-400 animate-pulse" />
+                            <input
+                              type="text"
+                              value={
+                                (activePage.sections.find(s => s.content && "affiliateUrl" in s.content)?.content as any)?.affiliateUrl || ""
+                              }
+                              onChange={(e) => updateAllAffiliateUrls(e.target.value)}
+                              placeholder="e.g., https://warriorplus.com/..."
+                              className="w-full bg-black/70 border border-emerald-500/35 text-emerald-300 font-mono text-[9px] pl-6 p-1.5 rounded-lg focus:outline-none focus:border-emerald-400 text-left"
+                            />
+                          </div>
+                          <span className="block text-[8px] text-emerald-500/90 leading-tight font-sans">
+                            ⚡ <b>Instant Auto-Sync:</b> This immediately writes your custom link to all active reviewer buttons, headers, and bonuses!
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Section B: 1-Click expert Niche Content starters */}
+                      <div className="space-y-2 pt-1 border-t border-white/[0.03] font-sans">
+                        <span className="block text-[9px] font-bold text-rose-400 uppercase tracking-widest font-mono">🚀 1-CLICK NICHE PRELOADERS</span>
+                        <p className="text-[9.5px] text-slate-400 leading-tight font-sans">Pre-populate your workspace with professional affiliate review copy in seconds:</p>
+
+                        <div className="space-y-2 pt-1 font-sans">
+                          {/* SaaS review */}
+                          <button
+                            onClick={() => {
+                              if (confirm("Replace current view with professional SaaS AI Software clone template reviews? Your configurations will be updated.")) {
+                                injectNicheTemplate("saas");
+                              }
+                            }}
+                            className="w-full bg-slate-900/60 hover:bg-slate-900 border border-white/[0.04] hover:border-pink-500/30 p-2.5 rounded-xl flex items-center gap-3 cursor-pointer group text-left transition-all font-sans"
+                          >
+                            <div className="p-1.5 bg-pink-500/10 text-pink-400 rounded-lg group-hover:scale-105 transition-all">
+                              <Icons.Zap className="w-3.5 h-3.5" />
+                            </div>
+                            <div className="flex-1 min-w-0 font-sans">
+                              <span className="block text-[10px] font-bold text-white group-hover:text-pink-300 font-sans">Software / AI SaaS Reviews</span>
+                              <span className="block text-[8px] text-slate-500 font-mono">Applies ApexFlowai verified copy</span>
+                            </div>
+                          </button>
+
+                          {/* Health drop */}
+                          <button
+                            onClick={() => {
+                              if (confirm("Replace current view with professional Bio-Health Weight Loss supplement reviews? Your configurations will be updated.")) {
+                                injectNicheTemplate("health");
+                              }
+                            }}
+                            className="w-full bg-slate-900/60 hover:bg-slate-905 border border-white/[0.04] hover:border-emerald-500/35 p-2.5 rounded-xl flex items-center gap-3 cursor-pointer group text-left transition-all font-sans"
+                          >
+                            <div className="p-1.5 bg-emerald-500/10 text-emerald-500 rounded-lg group-hover:scale-105 transition-all">
+                              <Icons.Activity className="w-3.5 h-3.5" />
+                            </div>
+                            <div className="flex-1 min-w-0 font-sans">
+                              <span className="block text-[10px] font-bold text-white group-hover:text-emerald-300 font-sans">Health Drops / Supplement</span>
+                              <span className="block text-[8px] text-slate-500 font-mono font-sans">Applies Slimcore Wellness copy</span>
+                            </div>
+                          </button>
+
+                          {/* Crypto course */}
+                          <button
+                            onClick={() => {
+                              if (confirm("Replace current view with high ticket Blockchain passive signals course templates? Your configurations will be updated.")) {
+                                injectNicheTemplate("crypto");
+                              }
+                            }}
+                            className="w-full bg-slate-900/60 hover:bg-slate-950 border border-white/[0.04] hover:border-yellow-500/35 p-2.5 rounded-xl flex items-center gap-3 cursor-pointer group text-left transition-all font-sans"
+                          >
+                            <div className="p-1.5 bg-yellow-500/10 text-yellow-550 rounded-lg group-hover:scale-105 transition-all">
+                              <Icons.Coins className="w-3.5 h-3.5" />
+                            </div>
+                            <div className="flex-1 min-w-0 font-sans">
+                              <span className="block text-[10px] font-bold text-white group-hover:text-yellow-400 font-sans">Wealth System & DeFi Masterclass</span>
+                              <span className="block text-[8px] text-slate-500 font-mono font-sans">Applies Passive Protocol copy</span>
+                            </div>
+                          </button>
+
+                          {/* Systeme.io course */}
+                          <button
+                            onClick={() => {
+                              if (confirm("Replace current view with high-fidelity Systeme.io courses and funnels template? Your configurations will be updated.")) {
+                                injectNicheTemplate("systeme");
+                              }
+                            }}
+                            className="w-full bg-slate-900/60 hover:bg-slate-950 border border-white/[0.04] hover:border-blue-500/35 p-2.5 rounded-xl flex items-center gap-3 cursor-pointer group text-left transition-all font-sans"
+                          >
+                            <div className="p-1.5 bg-blue-500/10 text-[#00a4ff] rounded-lg group-hover:scale-105 transition-all">
+                              <Icons.MonitorPlay className="w-3.5 h-3.5" />
+                            </div>
+                            <div className="flex-1 min-w-0 font-sans">
+                              <span className="block text-[10px] font-bold text-white group-hover:text-blue-300 font-sans">Systeme.io Electric Funnel</span>
+                              <span className="block text-[8px] text-slate-500 font-mono font-sans">Applies Systeme Course capture copy</span>
+                            </div>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Section C: Aesthetic Skins presets */}
+                      <div className="space-y-1.5 pt-2 border-t border-white/[0.03] font-sans">
+                        <span className="block text-[8px] font-bold text-slate-500 uppercase tracking-widest font-mono">🎨 BRAND APPEARANCE SKINS</span>
+                        <div className="grid grid-cols-2 gap-1.5">
+                          {COLOR_PALETTES.map((pal, idx) => (
+                            <button
+                              key={idx}
+                              onClick={() => changePalette(pal)}
+                              className={`p-1.5 rounded-lg border text-[9px] transition-all text-left truncate cursor-pointer font-sans ${
+                                activePage.colorPalette?.name === pal.name
+                                  ? "border-purple-500 bg-purple-500/10 text-white"
+                                  : "border-white/[0.04] bg-slate-900/40 text-slate-400 hover:text-slate-205"
+                              }`}
+                            >
+                              <div className="flex items-center gap-1 font-sans">
+                                <span className="w-2 h-2 rounded-full bg-gradient-to-r from-violet-500 to-indigo-500 inline-block shrink-0" />
+                                <span className="truncate font-sans font-sans">{pal.name}</span>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Tab Content Panel 3: REAL-TIME NAVIGATOR TREE */}
+                  {elementorSidebarTab === "navigator" && (
+                    <div className="flex-1 overflow-y-auto p-3 space-y-3 scrollbar-thin text-left font-sans" id="elementor-navigator-panel">
+                      <div className="flex items-center justify-between shrink-0 font-sans">
+                        <span className="text-[8px] font-bold text-purple-400 uppercase tracking-widest font-mono">🗺️ PAGE INSTANCE TREE</span>
+                        <span className="text-[8px] text-slate-500 font-mono">{activePage.sections.length} Components</span>
+                      </div>
+
+                      <div className="space-y-1.5 font-sans justify-start">
+                        {activePage.sections.map((sec, idx) => {
+                          const isSelected = selectedSectionId === sec.id;
+                          return (
+                            <div
+                              key={sec.id}
+                              className={`group p-2 rounded-xl border flex items-center justify-between transition-all font-sans ${
+                                isSelected
+                                  ? "bg-purple-600/10 border-purple-500/50 text-purple-200"
+                                  : "bg-slate-900/30 border-white/[0.03] text-slate-400 hover:bg-slate-900/70"
+                              }`}
+                            >
+                              {/* Left detail anchor click */}
+                              <button
+                                onClick={() => {
+                                  setSelectedSectionId(sec.id);
+                                  document.getElementById(`section-${sec.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+                                }}
+                                className="flex-1 text-left truncate cursor-pointer mr-2 font-sans"
+                              >
+                                <span className="block text-[9px] font-extrabold truncate font-sans">
+                                  {idx + 1}. {sec.type.replace("aff_", "⭐ ").replace(/_/g, " ").toUpperCase()}
+                                </span>
+                                <span className="block text-[8px] text-slate-500 truncate font-mono">id: {sec.id}</span>
+                              </button>
+
+                              {/* Operations buttons */}
+                              <div className="flex items-center gap-1 shrink-0 opacity-80 group-hover:opacity-100 transition-all">
+                                <button
+                                  disabled={idx === 0}
+                                  onClick={() => moveSection("up", sec.id)}
+                                  className="p-1 hover:bg-black/40 text-slate-500 hover:text-white rounded disabled:opacity-20 cursor-pointer"
+                                  title="Move Up"
+                                >
+                                  <Icons.ArrowUp className="w-2.5 h-2.5" />
+                                </button>
+                                <button
+                                  disabled={idx === activePage.sections.length - 1}
+                                  onClick={() => moveSection("down", sec.id)}
+                                  className="p-1 hover:bg-black/40 text-slate-500 hover:text-white rounded disabled:opacity-20 cursor-pointer"
+                                  title="Move Down"
+                                >
+                                  <Icons.ArrowDown className="w-2.5 h-2.5" />
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    if (confirm("Are you sure you want to delete this section from your landing page?")) {
+                                      deleteSection(sec.id);
+                                    }
+                                  }}
+                                  className="p-1 hover:bg-red-500/10 text-slate-500 hover:text-red-400 rounded cursor-pointer"
+                                  title="Delete component"
+                                >
+                                  <Icons.Trash2 className="w-2.5 h-2.5" />
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {activePage.sections.length === 0 && (
+                        <div className="p-8 text-center text-slate-600 text-xs font-mono">
+                          No sections. Drop a widget!
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {/* Easy Use Instructions micro banner */}
-                  <div className="p-3 bg-slate-900/40 border-t border-white/[0.03] text-center text-[9px] text-slate-500 font-medium select-none shrink-0" id="elementor-micro-byline">
-                    💡 <b className="text-rose-400">Click</b> standard cards to drop onto page
+                  <div className="p-3 bg-slate-900/40 border-t border-white/[0.03] text-center text-[9px] text-slate-500 font-medium select-none shrink-0" id="elementor-micro-byline-persistent">
+                    🚀 <b className="text-rose-400 uppercase font-bold tracking-wider font-sans">Elementor Core Toolset Active</b>
                   </div>
                 </div>
               )}
@@ -1439,6 +2331,9 @@ export default function App() {
                       {activePage.sections.map((sec, idx) => {
                         if (!sec.isVisible) return null;
                         const isSelected = selectedSectionId === sec.id;
+                        const isLightSkin = activePage.colorPalette.primaryBg === "bg-[#f4f4f5]" || activePage.colorPalette.primaryBg === "bg-white" || activePage.colorPalette.primaryBg === "bg-slate-50" || activePage.colorPalette.primaryBg === "bg-zinc-50" || activePage.colorPalette.primaryBg === "bg-stone-50" || activePage.colorPalette.name.includes("Systeme");
+                        const textHeadingClass = isLightSkin ? "text-[#1d2939]" : "text-white";
+                        const isSystemeTheme = activePage.colorPalette.name.includes("Systeme");
 
                         return (
                           <div
@@ -1510,79 +2405,151 @@ export default function App() {
                             <div className="pointer-events-auto" id="section-inner-content">
                               
                               {/* HEADER RENDERER */}
-                              {sec.type === SectionType.HEADER && (
-                                <header className="py-4 px-6 border-b border-current/10 flex items-center justify-between" id="section-header-view">
-                                  <div className="font-extrabold text-base flex items-center gap-2">
-                                    <span className="text-purple-500">•</span> {(sec.content as HeaderSection).logoName || "ApexFlow"}
-                                  </div>
-                                  <div className="hidden md:flex items-center gap-6 text-sm text-current/80" id="header-links">
-                                    {(sec.content as HeaderSection).links?.map((li: any, lidx: number) => (
-                                      <a key={lidx} href={li.href || "#"} className="hover:text-purple-400 transition-all font-medium text-xs">
-                                        {li.label}
-                                      </a>
-                                    ))}
-                                  </div>
-                                  <button onClick={() => alert("Simulation Action: Header CTA Target Triggered")} className="bg-gradient-to-tr from-purple-600 to-indigo-600 py-1.5 px-3 rounded-lg text-xs font-bold text-white hover:brightness-110 transition-all cursor-pointer">
-                                    {(sec.content as HeaderSection).ctaText || "Start"}
-                                  </button>
-                                </header>
-                              )}
+                              {sec.type === SectionType.HEADER && (() => {
+                                const hasSystemeLogo = ((sec.content as HeaderSection).logoName || "").toLowerCase().includes("systeme");
+                                return (
+                                  <header className="py-4 px-6 border-b border-slate-100 flex items-center justify-between bg-white text-slate-800" id="section-header-view">
+                                    <div className="font-extrabold text-base flex items-center gap-2">
+                                      {hasSystemeLogo ? (
+                                        <div className="flex items-center gap-2">
+                                          <div className="w-8 h-8 rounded-full bg-[#00a4ff] text-white flex items-center justify-center font-black text-sm tracking-tighter shadow-sm select-none">
+                                            s
+                                          </div>
+                                          <span className="text-[#1d2939] font-extrabold text-lg tracking-tight select-none">systeme<span className="text-[#00a4ff]">.io</span></span>
+                                        </div>
+                                      ) : (
+                                        <>
+                                          <span className="text-purple-500">•</span> {(sec.content as HeaderSection).logoName || "ApexFlow"}
+                                        </>
+                                      )}
+                                    </div>
+                                    <div className="hidden md:flex items-center gap-6 text-sm text-slate-600" id="header-links">
+                                      {(sec.content as HeaderSection).links?.map((li: any, lidx: number) => (
+                                        <a key={lidx} href={li.href || "#"} className="hover:text-[#00a4ff] transition-all font-semibold text-xs text-[#475467]">
+                                          {li.label}
+                                        </a>
+                                      ))}
+                                    </div>
+                                    <button 
+                                      onClick={() => triggerCheckout("Premium Member Pass", "$19", "/mo")} 
+                                      className={`${
+                                        hasSystemeLogo 
+                                          ? "bg-transparent hover:bg-slate-50 text-[#475467] font-semibold border border-slate-200 py-2 px-4" 
+                                          : "bg-gradient-to-tr from-purple-600 to-indigo-600 font-bold text-white py-1.5 px-3"
+                                      } rounded-lg text-xs transition-all cursor-pointer`}
+                                    >
+                                      {(sec.content as HeaderSection).ctaText || "Start"}
+                                    </button>
+                                  </header>
+                                );
+                              })()}
 
                               {/* HERO RENDERER */}
-                              {sec.type === SectionType.HERO && (
-                                <section className="py-12 md:py-20 px-6 max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8 items-center" id="section-hero-view">
-                                  <div className="space-y-6" id="hero-left-col">
-                                    {(sec.content as HeroSectionData).badge && (
-                                      <span className="inline-block text-[10px] font-mono font-bold tracking-widest bg-purple-500/10 border border-purple-500/30 text-purple-300 py-1 px-3 rounded-full uppercase">
-                                        {(sec.content as HeroSectionData).badge}
-                                      </span>
-                                    )}
-                                    <h2 className="text-2xl md:text-4xl font-extrabold tracking-tight leading-tight">
-                                      {(sec.content as HeroSectionData).headline}
-                                    </h2>
-                                    <p className={`${activePage.colorPalette.textSecondary} text-sm leading-relaxed max-w-lg`}>
-                                      {(sec.content as HeroSectionData).subheadline}
-                                    </p>
-                                    
-                                    <div className="space-y-3" id="hero-cta-group">
-                                      <div className="flex flex-col sm:flex-row gap-3" id="hero-ctas">
-                                        <button onClick={() => alert("Simulation Opt-In Triggered")} className="bg-gradient-to-tr from-purple-600 to-indigo-600 text-white font-bold py-3 px-6 rounded-xl text-xs hover:brightness-110 shadow-lg shadow-purple-900/35 transition-all cursor-pointer">
-                                          {(sec.content as HeroSectionData).ctaText}
-                                        </button>
-                                        {(sec.content as HeroSectionData).secondaryCtaText && (
-                                          <button onClick={() => alert("Simulated Secondary Action")} className="bg-white/[0.04] text-white border border-white/[0.08] hover:bg-white/[0.07] font-bold py-3 px-6 rounded-xl text-xs transition-all cursor-pointer">
-                                            {(sec.content as HeroSectionData).secondaryCtaText}
+                              {sec.type === SectionType.HERO && (() => {
+                                const isSystemeHero = (sec.content as HeroSectionData).headline?.toLowerCase().includes("online courses") || !(sec.content as HeroSectionData).imageUrl;
+                                if (isSystemeHero) {
+                                  return (
+                                    <section className="py-16 md:py-24 px-6 max-w-4xl mx-auto flex flex-col items-center justify-center text-center space-y-8" id="section-hero-view">
+                                      <div className="space-y-6 max-w-3xl flex flex-col items-center justify-center text-center animate-fade-in" id="hero-centered-content">
+                                        {(sec.content as HeroSectionData).badge && (
+                                          <span className="inline-block text-[10px] font-mono font-bold tracking-widest bg-blue-500/10 border border-blue-500/30 text-[#00a4ff] py-1 px-3 rounded-full uppercase">
+                                            {(sec.content as HeroSectionData).badge}
+                                          </span>
+                                        )}
+                                        <h2 className="text-4xl md:text-6xl font-black tracking-tight leading-none text-[#1d2939] max-w-2xl">
+                                          {renderHeadline((sec.content as HeroSectionData).headline)}
+                                        </h2>
+                                        <div className="space-y-2">
+                                          <p className="text-base md:text-xl font-medium text-[#475467] leading-relaxed max-w-2xl font-sans text-center">
+                                            Powering 500,000+ entrepreneurs
+                                          </p>
+                                          <p className="text-xs md:text-sm font-bold text-[#00a4ff] tracking-wide uppercase font-sans">
+                                            Get your free account now!
+                                          </p>
+                                        </div>
+                                        
+                                        <div className="w-full max-w-xl mx-auto flex flex-col sm:flex-row gap-2.5 pt-4" id="hero-sys-inputs">
+                                          <div className="relative flex-1">
+                                            <input
+                                              type="email"
+                                              placeholder="Enter your email address"
+                                              disabled
+                                              className="w-full bg-white border border-[#d0d5dd] rounded-lg pl-3 pr-3 py-3.5 text-sm text-[#1d2939] placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#00a4ff] font-sans antialiased text-left shadow-xs"
+                                            />
+                                          </div>
+                                          <button onClick={() => triggerCheckout("Free Systeme Course Account", "$0", " /forever")} className="bg-[#00a4ff] hover:bg-[#0090ff] text-white font-extrabold py-3.5 px-8 rounded-lg text-sm transition-all shadow-md shadow-blue-500/25 active:scale-95 cursor-pointer font-sans tracking-wide">
+                                            {(sec.content as HeroSectionData).ctaText || "Click here"}
                                           </button>
+                                        </div>
+
+                                        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-3 text-[#475467] text-xs font-sans font-medium" id="hero-badges-sys">
+                                          <span className="flex items-center gap-1.5 px-4 py-2 rounded-full border border-slate-200/80 bg-white shadow-xs">
+                                            <Icons.ThumbsUp className="w-3.5 h-3.5 text-blue-500" /> Free forever
+                                          </span>
+                                          <span className="flex items-center gap-1.5 px-4 py-2 rounded-full border border-slate-200/80 bg-white shadow-xs">
+                                            <Icons.Check className="w-3.5 h-3.5 text-emerald-500" /> No credit card required
+                                          </span>
+                                        </div>
+                                      </div>
+                                    </section>
+                                  );
+                                }
+                                
+                                return (
+                                  <section className="py-12 md:py-20 px-6 max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8 items-center" id="section-hero-view">
+                                    <div className="space-y-6" id="hero-left-col">
+                                      {(sec.content as HeroSectionData).badge && (
+                                        <span className="inline-block text-[10px] font-mono font-bold tracking-widest bg-purple-500/10 border border-purple-500/30 text-purple-300 py-1 px-3 rounded-full uppercase">
+                                          {(sec.content as HeroSectionData).badge}
+                                        </span>
+                                      )}
+                                      <h2 className="text-2xl md:text-4xl font-extrabold tracking-tight leading-tight">
+                                        {(sec.content as HeroSectionData).headline}
+                                      </h2>
+                                      <p className={`${activePage.colorPalette.textSecondary} text-sm leading-relaxed max-w-lg`}>
+                                        {(sec.content as HeroSectionData).subheadline}
+                                      </p>
+                                      
+                                      <div className="space-y-3" id="hero-cta-group">
+                                        <div className="flex flex-col sm:flex-row gap-3" id="hero-ctas">
+                                          <button onClick={() => triggerCheckout("VIP All-Access Growth Tier", "$27", "/mo")} className="bg-gradient-to-tr from-purple-600 to-indigo-600 text-white font-bold py-3 px-6 rounded-xl text-xs hover:brightness-110 shadow-lg shadow-purple-900/35 transition-all cursor-pointer">
+                                            {(sec.content as HeroSectionData).ctaText}
+                                          </button>
+                                          {(sec.content as HeroSectionData).secondaryCtaText && (
+                                            <button onClick={() => alert("Simulated Secondary Action")} className="bg-white/[0.04] text-white border border-white/[0.08] hover:bg-white/[0.07] font-bold py-3 px-6 rounded-xl text-xs transition-all cursor-pointer">
+                                              {(sec.content as HeroSectionData).secondaryCtaText}
+                                            </button>
+                                          )}
+                                        </div>
+                                        {(sec.content as HeroSectionData).ctaSubtext && (
+                                          <p className="text-[10px] text-slate-500 font-mono italic">
+                                            {(sec.content as HeroSectionData).ctaSubtext}
+                                          </p>
                                         )}
                                       </div>
-                                      {(sec.content as HeroSectionData).ctaSubtext && (
-                                        <p className="text-[10px] text-slate-500 font-mono italic">
-                                          {(sec.content as HeroSectionData).ctaSubtext}
-                                        </p>
+
+                                      {(sec.content as HeroSectionData).featuresList && (
+                                        <div className="pt-4 space-y-2 text-xs text-current/80" id="hero-mini-vectors">
+                                          {(sec.content as HeroSectionData).featuresList?.map((v: string, vidx: number) => (
+                                            <div key={vidx} className="flex items-center gap-2">
+                                              <span className="text-emerald-400 font-bold">✓</span> {v}
+                                            </div>
+                                          ))}
+                                        </div>
                                       )}
                                     </div>
 
-                                    {(sec.content as HeroSectionData).featuresList && (
-                                      <div className="pt-4 space-y-2 text-xs text-current/80" id="hero-mini-vectors">
-                                        {(sec.content as HeroSectionData).featuresList?.map((v: string, vidx: number) => (
-                                          <div key={vidx} className="flex items-center gap-2">
-                                            <span className="text-emerald-400 font-bold">✓</span> {v}
-                                          </div>
-                                        ))}
-                                      </div>
-                                    )}
-                                  </div>
-
-                                  <div className="relative justify-center" id="hero-right-col">
-                                    <div className="absolute inset-0 bg-purple-500/10 rounded-3xl blur-2xl pointer-events-none" />
-                                    <img
-                                      src={(sec.content as HeroSectionData).imageUrl || "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=400&q=80"}
-                                      alt="Campaign Vision Block"
-                                      className="rounded-2xl border border-white/[0.08] w-full max-h-72 object-cover relative z-10 shadow-xl"
-                                    />
-                                  </div>
-                                </section>
-                              )}
+                                    <div className="relative justify-center" id="hero-right-col">
+                                      <div className="absolute inset-0 bg-purple-500/10 rounded-3xl blur-2xl pointer-events-none" />
+                                      <img
+                                        src={(sec.content as HeroSectionData).imageUrl || "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=400&q=80"}
+                                        alt="Campaign Vision Block"
+                                        className="rounded-2xl border border-white/[0.08] w-full max-h-72 object-cover relative z-10 shadow-xl"
+                                      />
+                                    </div>
+                                  </section>
+                                );
+                              })()}
 
                               {/* FEATURES RENDERER */}
                               {sec.type === SectionType.FEATURES && (
@@ -1601,7 +2568,7 @@ export default function App() {
                                           <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-400 border border-purple-500/35" id="feat-icon-shell">
                                             {renderIcon(it.icon || "Zap", "w-5 h-5")}
                                           </div>
-                                          <h4 className="text-xs font-bold text-white uppercase tracking-wider">{it.title}</h4>
+                                          <h4 className={`text-xs font-bold ${textHeadingClass} uppercase tracking-wider`}>{it.title}</h4>
                                           <p className={`${activePage.colorPalette.textSecondary} text-xs leading-relaxed`}>
                                             {it.description}
                                           </p>
@@ -1621,7 +2588,7 @@ export default function App() {
                                         <span className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-indigo-400 block">
                                           {it.value || "+100%"}
                                         </span>
-                                        <h4 className="text-xs font-bold text-white uppercase tracking-wider">{it.title}</h4>
+                                        <h4 className={`text-xs font-bold ${textHeadingClass} uppercase tracking-wider`}>{it.title}</h4>
                                         <p className={`${activePage.colorPalette.textSecondary} text-xs leading-relaxed max-w-xs mx-auto`}>
                                           {it.description}
                                         </p>
@@ -1663,7 +2630,7 @@ export default function App() {
                                             className="w-10 h-10 rounded-full border border-white/[0.1] object-cover"
                                           />
                                           <div id="author-info">
-                                            <h5 className="font-bold text-xs text-white">{it.name}</h5>
+                                            <h5 className={`font-bold text-xs ${textHeadingClass}`}>{it.name}</h5>
                                             <p className="text-[10px] text-slate-500 font-mono italic">{it.role}</p>
                                           </div>
                                         </div>
@@ -1699,12 +2666,12 @@ export default function App() {
 
                                         <div className="space-y-4" id="plan-top-info">
                                           <div>
-                                            <h4 className="font-bold text-sm text-white uppercase tracking-wider">{pl.name}</h4>
+                                            <h4 className={`font-bold text-sm ${textHeadingClass} uppercase tracking-wider`}>{pl.name}</h4>
                                             <p className="text-[10px] text-slate-500 mt-1">{pl.description}</p>
                                           </div>
 
                                           <div className="flex items-baseline gap-1" id="pricing-price-box">
-                                            <span className="text-3xl font-extrabold text-white">{pl.price}</span>
+                                            <span className={`text-3xl font-extrabold ${textHeadingClass}`}>{pl.price}</span>
                                             <span className="text-xs text-slate-400 font-mono">{pl.period}</span>
                                           </div>
 
@@ -1717,7 +2684,7 @@ export default function App() {
                                           </ul>
                                         </div>
 
-                                        <button onClick={() => alert(`Simulating checkout redirect: Selected plan ${pl.name}`)} className="w-full bg-gradient-to-tr from-purple-600 to-indigo-600 py-2 rounded-xl text-xs font-bold text-white transition-all hover:brightness-115 cursor-pointer mt-6">
+                                        <button onClick={() => triggerCheckout(pl.name, pl.price, pl.period)} className={`w-full ${isSystemeTheme ? "bg-[#00a4ff] hover:bg-[#0090ff]" : "bg-gradient-to-tr from-purple-600 to-indigo-600"} py-2.5 rounded-xl text-xs font-bold text-white transition-all hover:brightness-115 cursor-pointer mt-6`}>
                                           {pl.buttonText || "Choose Plan"}
                                         </button>
 
@@ -1742,7 +2709,7 @@ export default function App() {
                                   <div className="space-y-4" id="faq-items-stack">
                                     {(sec.content as FaqSectionData).items?.map((it: any, faqidx: number) => (
                                       <div key={it.id || faqidx} className={`${activePage.colorPalette.cardBg} ${activePage.colorPalette.border} border p-5 rounded-2xl text-left space-y-2`} id={`faq-card-${faqidx}`}>
-                                        <h4 className="text-xs font-bold text-white flex items-center gap-2">
+                                        <h4 className={`text-xs font-bold ${textHeadingClass} flex items-center gap-2`}>
                                           <Icons.HelpCircle className="w-4 h-4 text-purple-400 shrink-0" />
                                           {it.question}
                                         </h4>
@@ -1776,7 +2743,7 @@ export default function App() {
 
                                     {/* MOCK SECURE BUY BUTTON */}
                                     <div className="space-y-4 relative z-10" id="urgency-actions">
-                                      <button onClick={() => alert("Simulation urgency checkout initialized!")} className="bg-gradient-to-tr from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-extrabold py-3 px-8 rounded-xl text-xs shadow-lg shadow-purple-900/40 transition-all cursor-pointer">
+                                      <button onClick={() => triggerCheckout((sec.content as CtaUrgencyData).title || "Flash Offer Deal", "$49", "/one-time")} className="bg-gradient-to-tr from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-extrabold py-3 px-8 rounded-xl text-xs shadow-lg shadow-purple-900/40 transition-all cursor-pointer">
                                         {(sec.content as CtaUrgencyData).buttonText}
                                       </button>
                                       
@@ -2779,8 +3746,248 @@ export default function App() {
           </div>
         )}
 
-      </div>
+      {/* SECURE CHECKOUT SIMULATED PROCESSOR MODAL */}
+      {isCheckoutModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-xs p-4 overflow-y-auto" id="checkout-modal-overlay">
+          <div className="bg-[#0b0c14] border border-white/[0.08] rounded-2xl w-full max-w-lg shadow-2xl relative overflow-hidden flex flex-col" id="checkout-modal-content">
+            
+            {/* Modal header/branding banner */}
+            <div className="bg-gradient-to-r from-purple-900 via-indigo-900 to-slate-950 p-6 text-white border-b border-white/[0.06] relative" id="checkout-banner">
+              <button 
+                onClick={() => setIsCheckoutModalOpen(false)}
+                className="absolute top-4 right-4 text-slate-400 hover:text-white transition-all bg-white/[0.05] hover:bg-white/[0.1] rounded-full p-1.5 cursor-pointer"
+                title="Cancel Checkout"
+              >
+                <Icons.X className="w-4 h-4" />
+              </button>
+              <div className="flex items-center gap-2 mb-2">
+                <Icons.Lock className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span className="text-[10px] text-emerald-400 font-mono font-bold tracking-wider uppercase">
+                  Secure Sandbox Processor
+                </span>
+              </div>
+              <h3 className="text-lg font-bold">Complete Your Purchase</h3>
+              <p className="text-xs text-purple-300">
+                Authorized Sandbox Simulation checkout matching direct landing metrics.
+              </p>
+            </div>
+
+            {/* Price breakdown block */}
+            <div className="bg-[#121424] px-6 py-4 border-b border-white/[0.04] flex items-center justify-between" id="checkout-plan-pill">
+              <div>
+                <span className="text-[10px] text-slate-500 font-mono uppercase block">Selected Tier Plan</span>
+                <span className="text-xs font-bold text-slate-200">{checkoutPlanName || "Growth Premium Offer"}</span>
+              </div>
+              <div className="text-right">
+                <span className="text-[10px] text-slate-500 font-mono uppercase block">Total Billing</span>
+                <span className="text-sm font-extrabold text-white">{checkoutPlanPrice || "$27"}<span className="text-[10px] text-slate-400 font-normal">{checkoutPlanPeriod || "/mo"}</span></span>
+              </div>
+            </div>
+
+            {checkoutSuccess ? (
+              /* Verification/Receipt success Screen */
+              <div className="p-8 text-center space-y-6 flex flex-col items-center justify-center" id="checkout-success-view">
+                <div className="w-16 h-16 bg-emerald-500/10 border border-emerald-500/30 rounded-full flex items-center justify-center animate-bounce">
+                  <Icons.Check className="w-8 h-8 text-emerald-400" />
+                </div>
+                
+                <div className="space-y-2">
+                  <h4 className="text-lg font-bold text-white">Payment Authorized Successfully! 🎉</h4>
+                  <p className="text-xs text-slate-400 max-w-xs mx-auto leading-relaxed">
+                    Thank you! The sandbox simulation completed securely. This contact email status has been registered directly inside your campaign <b>Leads CRM database</b>.
+                  </p>
+                </div>
+
+                <div className="bg-[#121424] border border-white/[0.04] p-4 rounded-xl w-full text-left space-y-2.5 text-xs" id="receipt-details">
+                  <div className="flex justify-between text-slate-400">
+                    <span>Invoice Reference</span>
+                    <span className="font-mono text-slate-200">#INV-{Math.floor(100000 + Math.random() * 900000)}</span>
+                  </div>
+                  <div className="flex justify-between text-slate-400">
+                    <span>Payment Method</span>
+                    <span className="text-slate-200 text-right capitalize">{checkoutBrand} Secure ({checkoutBrand === 'card' ? 'Visa' : checkoutBrand})</span>
+                  </div>
+                  <div className="flex justify-between text-slate-400">
+                    <span>Registered Buyer Address</span>
+                    <span className="text-slate-200 font-mono text-right truncate max-w-xs">{checkoutEmail || "anonymous@sandbox.io"}</span>
+                  </div>
+                  <div className="flex justify-between text-slate-400">
+                    <span>Processed Date</span>
+                    <span className="text-slate-200">{new Date().toLocaleDateString()}</span>
+                  </div>
+                </div>
+
+                <button 
+                  onClick={() => setIsCheckoutModalOpen(false)}
+                  className="w-full bg-gradient-to-tr from-purple-600 to-indigo-600 text-white font-bold py-2.5 rounded-xl text-xs hover:brightness-110 shadow-lg shadow-purple-900/30 cursor-pointer transition-all"
+                >
+                  Return to Page Editor
+                </button>
+              </div>
+            ) : (
+              /* Payment Checkout form fields */
+              <form onSubmit={handleSimulatedPaymentSubmit} className="p-6 space-y-5" id="checkout-form-body">
+                
+                {/* Email Address details section */}
+                <div className="space-y-1.5" id="checkout-email-group">
+                  <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">
+                    Email Address <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={checkoutEmail}
+                    onChange={(e) => setCheckoutEmail(e.target.value)}
+                    placeholder="Enter your email for buyer verification"
+                    className="w-full bg-[#03030a] border border-white/[0.08] focus:border-purple-500 rounded-lg p-3 text-xs text-slate-200 focus:outline-none"
+                  />
+                </div>
+
+                {/* Tabs choosing between payment brands */}
+                <div className="grid grid-cols-3 gap-2" id="checkout-payment-tabs">
+                  <button
+                    type="button"
+                    onClick={() => setCheckoutBrand("card")}
+                    className={`flex flex-col items-center justify-center p-2.5 rounded-xl border transition-all cursor-pointer ${checkoutBrand === 'card' ? 'bg-purple-950/20 border-purple-500 text-white' : 'bg-[#03030a] border-white/[0.06] text-slate-400 hover:text-white'}`}
+                  >
+                    <Icons.CreditCard className="w-4 h-4 mb-1" />
+                    <span className="text-[9px] font-bold uppercase">Credit Card</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCheckoutBrand("paypal");
+                      setCheckoutEmail(checkoutEmail || "paypal-buyer@sandbox.io");
+                      setCheckoutCardName("Paypal Express Account");
+                    }}
+                    className={`flex flex-col items-center justify-center p-2.5 rounded-xl border transition-all cursor-pointer ${checkoutBrand === 'paypal' ? 'bg-purple-950/20 border-purple-500 text-white' : 'bg-[#03030a] border-white/[0.06] text-slate-400 hover:text-white'}`}
+                  >
+                    <Icons.Globe className="w-4 h-4 mb-1 text-blue-400" />
+                    <span className="text-[9px] font-bold uppercase">PayPal</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCheckoutBrand("gpay");
+                      setCheckoutEmail(checkoutEmail || "gpay-buyer@sandbox.io");
+                      setCheckoutCardName("Google Pay Auth User");
+                    }}
+                    className={`flex flex-col items-center justify-center p-2.5 rounded-xl border transition-all cursor-pointer ${checkoutBrand === 'gpay' ? 'bg-purple-950/20 border-purple-500 text-white' : 'bg-[#03030a] border-white/[0.06] text-slate-400 hover:text-white'}`}
+                  >
+                    <Icons.Smartphone className="w-4 h-4 mb-1 text-emerald-400" />
+                    <span className="text-[9px] font-bold uppercase">Google Pay</span>
+                  </button>
+                </div>
+
+                {checkoutBrand === "card" ? (
+                  /* Credit card inputs layout */
+                  <div className="space-y-4" id="cc-details-group">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">Cardholder Name</label>
+                      <input
+                        type="text"
+                        required
+                        value={checkoutCardName}
+                        onChange={(e) => setCheckoutCardName(e.target.value)}
+                        placeholder="e.g. Rahul Sharma"
+                        className="w-full bg-[#03030a] border border-white/[0.08] focus:border-purple-500 rounded-lg p-2.5 text-xs text-slate-200 focus:outline-none"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">Card Number</label>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          required
+                          value={checkoutCardNum}
+                          onChange={(e) => setCheckoutCardNum(e.target.value)}
+                          placeholder="4242 4242 4242 4242"
+                          className="w-full bg-[#03030a] border border-white/[0.08] focus:border-purple-500 rounded-lg p-2.5 pl-9 text-xs font-mono text-slate-200 focus:outline-none"
+                        />
+                        <Icons.CreditCard className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">Expiration Date</label>
+                        <input
+                          type="text"
+                          required
+                          value={checkoutCardExpiry}
+                          onChange={(e) => setCheckoutCardExpiry(e.target.value)}
+                          placeholder="MM/YY"
+                          className="w-full bg-[#03030a] border border-white/[0.08] focus:border-purple-500 rounded-lg p-2.5 text-xs font-mono text-slate-200 focus:outline-none"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">CVC / CVV</label>
+                        <input
+                          type="password"
+                          maxLength={4}
+                          required
+                          value={checkoutCardCVC}
+                          onChange={(e) => setCheckoutCardCVC(e.target.value)}
+                          placeholder="•••"
+                          className="w-full bg-[#03030a] border border-white/[0.08] focus:border-purple-500 rounded-lg p-2.5 text-xs font-mono text-slate-200 focus:outline-none"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ) : checkoutBrand === "paypal" ? (
+                  /* PayPal specific state simulation */
+                  <div className="bg-[#121424]/40 border border-blue-500/10 p-5 rounded-2xl text-center space-y-3" id="paypal-sim">
+                    <Icons.Globe className="w-8 h-8 text-blue-400 mx-auto animate-pulse" />
+                    <p className="text-xs text-slate-300">
+                      We will redirect securely to <b>PayPal Sandbox Express Checkout</b>. No payment configuration is needed in this test playground environment.
+                    </p>
+                    <span className="text-[10px] text-blue-400 block font-mono">Status: Connected (Simulated)</span>
+                  </div>
+                ) : (
+                  /* Google Pay specific simulation state */
+                  <div className="bg-[#121424]/40 border border-emerald-500/10 p-5 rounded-2xl text-center space-y-3" id="gpay-sim">
+                    <Icons.Smartphone className="w-8 h-8 text-emerald-400 mx-auto animate-pulse" />
+                    <p className="text-xs text-slate-300">
+                      Express checkout with stored browser biometric or cards with <b>Google Pay</b>. High-speed checkout active in campaign.
+                    </p>
+                    <span className="text-[10px] text-emerald-400 block font-mono">Status: Pay with Browser Fingerprint</span>
+                  </div>
+                )}
+
+                {/* Submitting/Processing Secure Payment button */}
+                <div className="pt-2" id="checkout-button-container">
+                  <button
+                    type="submit"
+                    disabled={checkoutIsPaying}
+                    className="w-full bg-gradient-to-tr from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-extrabold py-3 rounded-xl text-xs transition-all shadow-lg shadow-purple-950/40 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-75"
+                  >
+                    {checkoutIsPaying ? (
+                      <>
+                        <Icons.Sparkles className="w-4 h-4 text-purple-300 animate-spin" />
+                        Authorizing Sandbox Secure SSL Gateway...
+                      </>
+                    ) : (
+                      <>
+                        <Icons.Lock className="w-3.5 h-3.5" />
+                        Authorize Secure Sandbox Payment & Register Offer
+                      </>
+                    )}
+                  </button>
+                  <p className="text-center text-[10px] text-slate-500 mt-2.5 flex items-center justify-center gap-1">
+                    🔒 SSL SECURE 256-BIT ENCRYPTION — TEST ENVIRONMENT DRAFT
+                  </p>
+                </div>
+
+              </form>
+            )}
+
+          </div>
+        </div>
+      )}
 
     </div>
+
+  </div>
   );
 }
